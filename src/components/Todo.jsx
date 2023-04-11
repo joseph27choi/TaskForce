@@ -2,7 +2,7 @@ import styled from 'styled-components';
 import React from 'react'
 import { useRef, useState, useEffect } from 'react';
 import { db } from "../shared/firebase";
-import { ref, get, child, onValue } from "firebase/database";
+import { ref, get, child, onValue, set, update } from "firebase/database";
 import { uid } from 'uid';
 
 const Todo = () => {
@@ -19,36 +19,65 @@ const Todo = () => {
             const dataRef = await ref(db);
 
             // to transform the data into readable array, follow the next steps
-            await onValue( dataRef, (snapshot) => {
+            await onValue(dataRef, (snapshot) => {
 
                 // snapshot.val() will have the info as a JSON, need to store it
                 const dataJson = snapshot.val();
 
                 // see if data is null or not
                 if (dataJson) {
+
                     // then convert it into a readable array, and then export?
-                    const arrayOfKeys = Object.keys(dataJson);
+                    const arrayOfKeys = Object.keys(dataJson.TaskDB);
 
                     // map through the new array, updating the objects inside, and return results to temp
-                    const tempArrOfObjects = arrayOfKeys.map( (key) => {
+                    const tempArrOfObjects = arrayOfKeys.map((key) => {
                         // for each element, return an object with {"id": key, "second": "string", "completed": bool}
-                        return {"id": key, ...dataJson[key] };
+                        return { "id": key, ...dataJson.TaskDB[key] };
                     })
 
                     setTasks(tempArrOfObjects);
 
-                    // there is nothing being printed on screen for some reason
-                    tasks && console.log(tasks); 
                 }
             });
 
         };
         fetchData();
+
     }, []);
 
 
-    const handleAddBtn = () => {
+    const handleAddBtn = async () => {
+        // this is for creating a secure endpoint
         const uuid = uid();
+
+        // figure out what you want to add by a default click
+        const newlyEnteredTask = { "task": userInputRef.current.value, "completed": false, "timed": false };
+
+        // add it all together
+        await set(ref(db, "/TaskDB/" + uuid), newlyEnteredTask);
+
+        // set the input field back to an empty string
+        userInputRef.current.value = "";
+    }
+
+    const handleUpdateBtn = async (idParam) => {
+        const completedTask = tasks.find( (task) => task.id === idParam);
+        completedTask.completed = !completedTask.completed;
+
+        update(child(ref(db), `TaskDB/${idParam}`), completedTask);
+
+        // done with the database but still need to update the array with the tasks stored in it
+        const updatedTasks = tasks.map( (task) => {
+            if (task.id === idParam) {
+                console.log(completedTask)
+                return completedTask ;
+            }
+            return task;
+        } );
+
+        setTasks(updatedTasks);
+        console.log(tasks);
     }
 
     return (
@@ -79,25 +108,18 @@ const Todo = () => {
 
                 <TaskHeader>Tasks · 2h 15m</TaskHeader>
                 <TasksDiv>
-                    <Task>
-                        <input type='checkbox' />
-                        <p>Update</p>
-                    </Task>
-                    <Task>
-                        <input type='checkbox' />
-                        <p>Delete</p>
-                    </Task>
-                    <Task>
-                        <input type='checkbox' />
-                        <p>Refactor</p>
-                    </Task>
-                    <Task>
-                        <input type='checkbox' />
-                        <p>Navigate</p>
-                    </Task>
+                    {/* this is where the logic should go for returning new task tabs*/}
+
+                    {/* check if the array of tasks exists, it cannot be printed otherwise */}
+                    {tasks?.map((submittedTask, index) => {
+                        return (
+                            <Task key={index} >
+                                <input type='checkbox' onClick={() => handleUpdateBtn(submittedTask.id)}/>
+                                <span>{ submittedTask.task }</span>
+                            </Task>
+                        );
+                    })}
                 </TasksDiv>
-
-
 
             </StyledTodo>
         </StyledContainer>
@@ -201,7 +223,6 @@ const InputDiv = styled.div`
 const Input = styled.input`
     font-size: 16px;
 
-
     height: 100%;
     width: 100%;
 
@@ -241,6 +262,7 @@ const Task = styled.div`
     background-color: white;
     width: 100%;
 
+    padding: 1rem 0;
     margin: 0.2rem 0;
 
     display: flex;
