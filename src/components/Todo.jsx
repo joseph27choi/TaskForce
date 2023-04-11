@@ -1,16 +1,54 @@
 import styled from 'styled-components';
 import React from 'react'
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { db } from "../shared/firebase";
+import { ref, get, child, onValue } from "firebase/database";
+import { uid } from 'uid';
 
 const Todo = () => {
 
     const [tasks, setTasks] = useState([]);
     const userInputRef = useRef(null);
 
-    const submitBtnHandler = () => {
-        tasks.map((task) => {
-            setTasks([...task,])
-        })
+    useEffect(() => {
+        // always declare and call fetcher function first
+        const fetchData = async () => {
+            // load images if you have any (don't)
+
+            // find the data location and store in pointer, recall, db comes from firebase.js
+            const dataRef = await ref(db);
+
+            // to transform the data into readable array, follow the next steps
+            await onValue( dataRef, (snapshot) => {
+
+                // snapshot.val() will have the info as a JSON, need to store it
+                const dataJson = snapshot.val();
+
+                // see if data is null or not
+                if (dataJson) {
+                    // then convert it into a readable array, and then export?
+                    const arrayOfKeys = Object.keys(dataJson);
+
+                    // map through the new array, updating the objects inside, and return results to temp
+                    const tempArrOfObjects = arrayOfKeys.map( (key) => {
+                        // for each element, return an object with {"id": key, "second": "string", "completed": bool}
+                        return {"id": key, ...dataJson[key] };
+                    })
+
+                    setTasks(tempArrOfObjects);
+
+                    // there is nothing being printed on screen for some reason
+                    tasks && console.log(tasks); 
+                }
+            });
+
+        };
+        fetchData();
+    }, []);
+
+
+    const handleAddBtn = () => {
+        const uuid = uid();
     }
 
     return (
@@ -35,7 +73,7 @@ const Todo = () => {
                     </CompletedTasksDiv>
                 </BannerDiv>
                 <InputDiv>
-                    <SubmitBtn onClick={submitBtnHandler}>+</SubmitBtn>
+                    <SubmitBtn onClick={handleAddBtn}>+</SubmitBtn>
                     <Input placeholder='Add a task to "Tasks", press "+" button to save' type='text' ref={userInputRef} />
                 </InputDiv>
 
@@ -59,7 +97,7 @@ const Todo = () => {
                     </Task>
                 </TasksDiv>
 
-                
+
 
             </StyledTodo>
         </StyledContainer>

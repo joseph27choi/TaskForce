@@ -1,0 +1,12 @@
+{
+    "tasks": {
+        "task": "update",
+        "completed": false,
+        "timed": false
+    },
+    "second": {
+        "task": "delete",
+        "completed": false,
+        "timed": false
+    }
+}
