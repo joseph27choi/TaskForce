@@ -16,6 +16,8 @@ const Todo = () => {
     const HIDESTRING = "Hide Completed Tasks ▲";
     const [showHideBtnString, setShowHideBtnString] = useState(SHOWSTRING);
 
+    const [showContextMenu, setShowContextMenu] = useState(false);
+
     useEffect(() => {
         // always declare and call fetcher function first
         const fetchData = async () => {
@@ -58,7 +60,7 @@ const Todo = () => {
         const uuid = uid();
 
         // figure out what you want to add by a default click
-        const newlyEnteredTask = { "content": userInputRef.current.value, "completed": false, "timed": false };
+        const newlyEnteredTask = { "content": userInputRef.current.value, "completed": false, "timed": 0, "priority": "Not Defined" };
 
         // add it all together
         await set(ref(db, "/TaskDB/" + uuid), newlyEnteredTask);
@@ -76,6 +78,7 @@ const Todo = () => {
             completed: completedTask.completed,
             timed: completedTask.timed,
             content: completedTask.content,
+            priority: completedTask.priority
         }
 
         await update(child(ref(db), `TaskDB/${idParam}`), newObj);
@@ -83,7 +86,6 @@ const Todo = () => {
         // done with the database but still need to update the array with the tasks stored in it
         const updatedTasks = tasks.map((task) => {
             if (task.id === idParam) {
-                console.log(completedTask)
                 return completedTask;
             }
             return task;
@@ -107,6 +109,63 @@ const Todo = () => {
         showCompletedTasks ? setShowHideBtnString(SHOWSTRING) : setShowHideBtnString(HIDESTRING);
     }
 
+    const handleEditBtn = () => {
+        setShowContextMenu(!showContextMenu);
+    }
+
+    const minusBtnHandler = async (idParam) => {
+
+        // finding task in server
+        const subtractedTimeTask = tasks.find((task) => task.id === idParam);
+
+        subtractedTimeTask.timed !== 0 ? subtractedTimeTask.timed -= 1 : subtractedTimeTask.timed = subtractedTimeTask.timed;
+
+        // changing server side time property
+        const newObj = {
+            completed: subtractedTimeTask.completed,
+            timed: subtractedTimeTask.timed,
+            content: subtractedTimeTask.content,
+            priority: subtractedTimeTask.priority
+        }
+
+        await update(child(ref(db), `TaskDB/${idParam}`), newObj);
+
+        // change the array
+        const arrWithUpdatedTimes = tasks?.map( (task) => {
+            if (task.id === idParam) {
+                return newObj;
+            }
+            return task;
+        })
+        setTasks(arrWithUpdatedTimes);
+    }
+
+    const plusBtnHandler = async (idParam) => {
+
+        // finding task in server
+        const addedTimeTask = tasks.find((task) => task.id === idParam);
+
+        addedTimeTask.timed < 5 ? addedTimeTask.timed += 1 : addedTimeTask.timed = addedTimeTask.timed;
+
+        // changing server side time property
+        const newObj = {
+            completed: addedTimeTask.completed,
+            timed: addedTimeTask.timed,
+            content: addedTimeTask.content,
+            priority: addedTimeTask.priority
+        }
+
+        await update(child(ref(db), `TaskDB/${idParam}`), newObj);
+
+        // change the array
+        const arrWithUpdatedTimes = tasks?.map( (task) => {
+            if (task.id === idParam) {
+                return newObj;
+            }
+            return task;
+        })
+        setTasks(arrWithUpdatedTimes);
+    }
 
     return (
         <StyledContainer>
@@ -136,15 +195,32 @@ const Todo = () => {
 
                 <TaskHeader>Tasks · 2h 15m</TaskHeader>
                 <TasksDiv>
-                    {/* this is where the logic should go for returning new task tabs*/}
-
-                    {/* check if the array of tasks exists, it cannot be printed otherwise */}
                     {tasks?.map((submittedTask, index) => {
                         if (submittedTask.completed === false) {
                             return (
                                 <Task key={index} >
-                                    <input type='checkbox' checked={submittedTask.completed ? true : false} onClick={() => handleUpdateBtn(submittedTask.id)} />
-                                    <span>{submittedTask.content}</span>
+                                    <div>
+                                        <input type='checkbox' checked={submittedTask.completed ? true : false} onChange={() => handleUpdateBtn(submittedTask.id)} />
+                                        <PlayButton>▶</PlayButton>
+                                        <span>{submittedTask.content}</span>
+                                    </div>
+                                    <div>
+                                        <button onClick={handleEditBtn}>EDIT</button>
+                                        {showContextMenu && (
+                                            <DropDown>
+                                                {/* <input type='text' placeholder={submittedTask.content} /> */}
+                                                <div className='pomodoro-widget'>
+                                                    <p>Estimated Pomodoros:</p>
+                                                    <PomodoroAdjuster>
+                                                        <button className='pomodoro-button' onClick={() => minusBtnHandler(submittedTask.id)}>-</button>
+                                                        <p><span className='timer-icon'>⏱</span>{submittedTask.timed}</p>
+                                                        <button className='pomodoro-button' onClick={() => plusBtnHandler(submittedTask.id)}>+</button>
+                                                    </PomodoroAdjuster>
+                                                </div>
+                                                <p>Priority: {submittedTask.priority}</p>
+                                            </DropDown>
+                                        )}
+                                    </div>
                                 </Task>
                             );
                         }
@@ -161,8 +237,9 @@ const Todo = () => {
                             return (
                                 <CompletedTask key={index}>
                                     <div>
-                                        <input type='checkbox' checked={submittedTask.completed ? true : false} onClick={() => handleUpdateBtn(submittedTask.id)} />
-                                        <span>{submittedTask.content}</span>
+                                        <input type='checkbox' checked={submittedTask.completed ? true : false} onChange={() => handleUpdateBtn(submittedTask.id)} />
+                                        <CompletedPlayButton>▶</CompletedPlayButton>
+                                        <span><s>{submittedTask.content}</s></span>
                                     </div>
                                     <button onClick={() => handleDeleteBtn(submittedTask.id)}>DELETE</button>
                                 </CompletedTask>
@@ -313,14 +390,32 @@ const Task = styled.div`
     background-color: white;
     width: 100%;
 
+    border: none;
+
     padding: 1rem 0;
     margin: 0.2rem 0;
 
     display: flex;
     flex-direction: row;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: center;
 `;
+
+const PlayButton = styled.button`
+    font-size: 10px;
+
+    padding: 0.3rem;
+
+    text-align: center;
+
+    background-color: #fb281026;
+    color: #fb2710d3;
+
+    border: none;
+    border-radius: 100%;
+
+    margin: 0 0.6rem 0 0.45rem;
+`
 
 
 const ShowHideDiv = styled.div`
@@ -355,6 +450,8 @@ const CompletedTasks = styled.div`
 
 const CompletedTask = styled.div`
     background-color: white;
+    color: #949494;
+
     width: 100%;
 
     padding: 1rem 0;
@@ -365,3 +462,65 @@ const CompletedTask = styled.div`
     justify-content: space-between;
     align-items: center;
 `;
+
+
+const CompletedPlayButton = styled.button`
+    font-size: 10px;
+
+    padding: 0.3rem;
+
+    text-align: center;
+
+    background-color: #fb281017;
+    color: #fb281066;
+
+    border: none;
+    border-radius: 100%;
+
+    margin: 0 0.6rem 0 0.45rem;
+`
+
+const DropDown = styled.div`
+    box-shadow: 0px 0px 5px 1px #d7d7d7;
+    border-radius: 10px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+
+    .pomodoro-widget {
+        color: #7e7e7e;
+
+        border-bottom: 1px solid gray;
+        padding: 0.5rem 0;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+`
+
+const PomodoroAdjuster = styled.div`
+    width: 100%;
+    border: 1px solid #d7d7d7;
+    border-radius: 10px;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+
+    .pomodoro-button {
+        border: none;
+        border-radius: 10px;
+        padding: 0.7rem;
+        margin: 0 0.2rem;
+    }
+
+    .timer-icon {
+        font-size: 18px;
+        color: red;
+    }
+`
