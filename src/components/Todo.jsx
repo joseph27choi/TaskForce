@@ -2,13 +2,19 @@ import styled from 'styled-components';
 import React from 'react'
 import { useRef, useState, useEffect } from 'react';
 import { db } from "../shared/firebase";
-import { ref, get, child, onValue, set, update } from "firebase/database";
+import { ref, child, onValue, set, update, remove } from "firebase/database";
 import { uid } from 'uid';
 
 const Todo = () => {
 
     const [tasks, setTasks] = useState([]);
     const userInputRef = useRef(null);
+
+    const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+
+    const SHOWSTRING = "Show Completed Tasks ▼";
+    const HIDESTRING = "Hide Completed Tasks ▲";
+    const [showHideBtnString, setShowHideBtnString] = useState(SHOWSTRING);
 
     useEffect(() => {
         // always declare and call fetcher function first
@@ -52,7 +58,7 @@ const Todo = () => {
         const uuid = uid();
 
         // figure out what you want to add by a default click
-        const newlyEnteredTask = { "task": userInputRef.current.value, "completed": false, "timed": false };
+        const newlyEnteredTask = { "content": userInputRef.current.value, "completed": false, "timed": false };
 
         // add it all together
         await set(ref(db, "/TaskDB/" + uuid), newlyEnteredTask);
@@ -62,23 +68,45 @@ const Todo = () => {
     }
 
     const handleUpdateBtn = async (idParam) => {
-        const completedTask = tasks.find( (task) => task.id === idParam);
+        const completedTask = tasks.find((task) => task.id === idParam);
         completedTask.completed = !completedTask.completed;
 
-        update(child(ref(db), `TaskDB/${idParam}`), completedTask);
+        // to omit id from being added to the updated field, consider making a special object that you can just insert in
+        const newObj = {
+            completed: completedTask.completed,
+            timed: completedTask.timed,
+            content: completedTask.content,
+        }
+
+        await update(child(ref(db), `TaskDB/${idParam}`), newObj);
 
         // done with the database but still need to update the array with the tasks stored in it
-        const updatedTasks = tasks.map( (task) => {
+        const updatedTasks = tasks.map((task) => {
             if (task.id === idParam) {
                 console.log(completedTask)
-                return completedTask ;
+                return completedTask;
             }
             return task;
-        } );
+        });
 
         setTasks(updatedTasks);
         console.log(tasks);
     }
+
+    const handleDeleteBtn = async (idParam) => {
+        // delete from database with built in firebase function, recall to use await because it is a server side function
+        await remove(child(ref(db), `TaskDB/${idParam}`));
+
+        // filter returns the elements that meet the following condition
+        const filteredArrOfTasks = tasks.filter((task) => task.id !== idParam);
+        setTasks(filteredArrOfTasks);
+    }
+
+    const handleShowHideBtn = () => {
+        setShowCompletedTasks(!showCompletedTasks);
+        showCompletedTasks ? setShowHideBtnString(SHOWSTRING) : setShowHideBtnString(HIDESTRING);
+    }
+
 
     return (
         <StyledContainer>
@@ -112,14 +140,37 @@ const Todo = () => {
 
                     {/* check if the array of tasks exists, it cannot be printed otherwise */}
                     {tasks?.map((submittedTask, index) => {
-                        return (
-                            <Task key={index} >
-                                <input type='checkbox' onClick={() => handleUpdateBtn(submittedTask.id)}/>
-                                <span>{ submittedTask.task }</span>
-                            </Task>
-                        );
+                        if (submittedTask.completed === false) {
+                            return (
+                                <Task key={index} >
+                                    <input type='checkbox' checked={submittedTask.completed ? true : false} onClick={() => handleUpdateBtn(submittedTask.id)} />
+                                    <span>{submittedTask.content}</span>
+                                </Task>
+                            );
+                        }
                     })}
                 </TasksDiv>
+
+                <ShowHideDiv>
+                    <ShowHideBtn onClick={handleShowHideBtn}>{showHideBtnString}</ShowHideBtn>
+                </ShowHideDiv>
+
+                <CompletedTasks>
+                    {showCompletedTasks && tasks?.map((submittedTask, index) => {
+                        if (submittedTask.completed === true) {
+                            return (
+                                <CompletedTask key={index}>
+                                    <div>
+                                        <input type='checkbox' checked={submittedTask.completed ? true : false} onClick={() => handleUpdateBtn(submittedTask.id)} />
+                                        <span>{submittedTask.content}</span>
+                                    </div>
+                                    <button onClick={() => handleDeleteBtn(submittedTask.id)}>DELETE</button>
+                                </CompletedTask>
+                            )
+                        }
+                    })}
+
+                </CompletedTasks>
 
             </StyledTodo>
         </StyledContainer>
@@ -269,4 +320,48 @@ const Task = styled.div`
     flex-direction: row;
     justify-content: flex-start;
     align-items: center;
+`;
+
+
+const ShowHideDiv = styled.div`
+    width: 100%;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
 `
+
+const ShowHideBtn = styled.button`
+    font-size: 14px;
+
+    background-color: white;
+    border: none;
+    border-radius: 10px;
+
+    margin: 1.5rem 0;
+`
+
+
+const CompletedTasks = styled.div`
+
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+`
+
+const CompletedTask = styled.div`
+    background-color: white;
+    width: 100%;
+
+    padding: 1rem 0;
+    margin: 0.2rem 0;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+`;
