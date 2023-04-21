@@ -2,8 +2,10 @@ import styled from 'styled-components';
 import React from 'react'
 import { useRef, useState, useEffect } from 'react';
 import { db } from "../shared/firebase";
-import { ref, child, onValue, set, update, remove } from "firebase/database";
+import { ref, child, set, update, remove } from "firebase/database";
 import { uid } from 'uid';
+import { useDispatch, useSelector } from 'react-redux';
+import { __getTask } from '../redux/modules/taskModule';
 
 const Todo = () => {
 
@@ -18,49 +20,23 @@ const Todo = () => {
 
     const [showContextMenu, setShowContextMenu] = useState(false);
 
+    // to use redux here, must import function from redux
+    const dispatch = useDispatch();
+    const tasksLoadedFromStore = useSelector( (stores) => stores.taskModule);
+
+    
     useEffect(() => {
-        // always declare and call fetcher function first
-        const fetchData = async () => {
-            // load images if you have any (don't)
-
-            // find the data location and store in pointer, recall, db comes from firebase.js
-            const dataRef = await ref(db);
-
-            // to transform the data into readable array, follow the next steps
-            await onValue(dataRef, (snapshot) => {
-
-                // snapshot.val() will have the info as a JSON, need to store it
-                const dataJson = snapshot.val();
-
-                // see if data is null or not
-                if (dataJson) {
-
-                    // then convert it into a readable array, and then export?
-                    const arrayOfKeys = Object.keys(dataJson.TaskDB);
-
-                    // map through the new array, updating the objects inside, and return results to temp
-                    const tempArrOfObjects = arrayOfKeys.map((key) => {
-                        // for each element, return an object with {"id": key, "second": "string", "completed": bool}
-                        return { "id": key, ...dataJson.TaskDB[key] };
-                    })
-
-                    setTasks(tempArrOfObjects);
-
-                }
-            });
-
-        };
-        fetchData();
-
+      dispatch(__getTask());
     }, []);
-
-
+    
+    console.log(tasksLoadedFromStore);
+    
     const handleAddBtn = async () => {
         // this is for creating a secure endpoint
         const uuid = uid();
 
         // figure out what you want to add by a default click
-        const newlyEnteredTask = { "content": userInputRef.current.value, "completed": false, "timed": 0, "priority": "Not Defined" };
+        const newlyEnteredTask = { "content": userInputRef.current.value, "completed": false, "timed": 0, "priority": "gray" };
 
         // add it all together
         await set(ref(db, "/TaskDB/" + uuid), newlyEnteredTask);
@@ -115,6 +91,8 @@ const Todo = () => {
 
     const minusBtnHandler = async (idParam) => {
 
+        console.log(idParam)
+
         // finding task in server
         const subtractedTimeTask = tasks.find((task) => task.id === idParam);
 
@@ -131,7 +109,7 @@ const Todo = () => {
         await update(child(ref(db), `TaskDB/${idParam}`), newObj);
 
         // change the array
-        const arrWithUpdatedTimes = tasks?.map( (task) => {
+        const arrWithUpdatedTimes = tasks?.map((task) => {
             if (task.id === idParam) {
                 return newObj;
             }
@@ -141,6 +119,8 @@ const Todo = () => {
     }
 
     const plusBtnHandler = async (idParam) => {
+
+        console.log(idParam)
 
         // finding task in server
         const addedTimeTask = tasks.find((task) => task.id === idParam);
@@ -158,7 +138,7 @@ const Todo = () => {
         await update(child(ref(db), `TaskDB/${idParam}`), newObj);
 
         // change the array
-        const arrWithUpdatedTimes = tasks?.map( (task) => {
+        const arrWithUpdatedTimes = tasks?.map((task) => {
             if (task.id === idParam) {
                 return newObj;
             }
@@ -166,6 +146,8 @@ const Todo = () => {
         })
         setTasks(arrWithUpdatedTimes);
     }
+
+
 
     return (
         <StyledContainer>
@@ -207,18 +189,25 @@ const Todo = () => {
                                     <div>
                                         <button onClick={handleEditBtn}>EDIT</button>
                                         {showContextMenu && (
-                                            <DropDown>
-                                                {/* <input type='text' placeholder={submittedTask.content} /> */}
-                                                <div className='pomodoro-widget'>
+                                            <DropDownDiv>
+                                                <PomodoroWidgetDiv>
                                                     <p>Estimated Pomodoros:</p>
-                                                    <PomodoroAdjuster>
+                                                    <div className='pomodoro-adjuster-div'>
                                                         <button className='pomodoro-button' onClick={() => minusBtnHandler(submittedTask.id)}>-</button>
                                                         <p><span className='timer-icon'>⏱</span>{submittedTask.timed}</p>
                                                         <button className='pomodoro-button' onClick={() => plusBtnHandler(submittedTask.id)}>+</button>
-                                                    </PomodoroAdjuster>
-                                                </div>
-                                                <p>Priority: {submittedTask.priority}</p>
-                                            </DropDown>
+                                                    </div>
+                                                </PomodoroWidgetDiv>
+                                                <PriorityWidgetDiv>
+                                                    <p>Priority:</p>
+                                                    <div className='priority-flags-div'>
+                                                        <button className='gray-flag'>⚑</button>
+                                                        <button className='green-flag'>⚑</button>
+                                                        <button className='orange-flag'>⚑</button>
+                                                        <button className='red-flag'>⚑</button>
+                                                    </div>
+                                                </PriorityWidgetDiv>
+                                            </DropDownDiv>
                                         )}
                                     </div>
                                 </Task>
@@ -480,7 +469,7 @@ const CompletedPlayButton = styled.button`
     margin: 0 0.6rem 0 0.45rem;
 `
 
-const DropDown = styled.div`
+const DropDownDiv = styled.div`
     box-shadow: 0px 0px 5px 1px #d7d7d7;
     border-radius: 10px;
 
@@ -489,28 +478,29 @@ const DropDown = styled.div`
     justify-content: space-evenly;
     align-items: center;
 
-    .pomodoro-widget {
-        color: #7e7e7e;
-
-        border-bottom: 1px solid gray;
-        padding: 0.5rem 0;
-
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
 `
 
-const PomodoroAdjuster = styled.div`
-    width: 100%;
-    border: 1px solid #d7d7d7;
-    border-radius: 10px;
+const PomodoroWidgetDiv = styled.div`
+    color: #7e7e7e;
+
+    border-bottom: 1px solid gray;
+    padding: 0 0 1.25rem 0;
 
     display: flex;
-    flex-direction: row;
-    justify-content: space-between;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
+
+    .pomodoro-adjuster-div {
+        width: 90%;
+        border: 1px solid #d7d7d7;
+        border-radius: 10px;
+
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
 
     .pomodoro-button {
         border: none;
@@ -524,3 +514,61 @@ const PomodoroAdjuster = styled.div`
         color: red;
     }
 `
+
+const PriorityWidgetDiv = styled.div`
+    
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+
+    .priority-flags-div {
+        width: 90%;
+
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+
+        margin: 0;
+    }
+
+    button {
+        border: none;
+        color: none;
+        background-color: white;
+        font-size: 40px;
+    }
+
+    .gray-flag {
+        color: #aeaeae;
+        border-radius: 10%;
+        padding: 0 0.3rem;
+    }
+
+    .green-flag {
+        color: green;
+        border-radius: 10%;
+        padding: 0 0.3rem;
+    }
+
+    .orange-flag {
+        color: orange;
+        border-radius: 10%;
+        padding: 0 0.3rem;
+    }
+
+    .red-flag {
+        color: red;
+        border-radius: 10%;
+        padding: 0 0.3rem;
+    }
+
+    .selected {
+        background-color: #c2c2c22f;
+    }
+`
+
+
