@@ -3,244 +3,237 @@ import React from 'react'
 import { useRef, useState, useEffect } from 'react';
 import { db } from "../shared/firebase";
 import { ref, child, set, update, remove } from "firebase/database";
-import { uid } from 'uid';
 import { useDispatch, useSelector } from 'react-redux';
-import { __getTask } from '../redux/modules/taskModule';
+import { __addTask, __deleteTask, __finishTask, __getTask } from '../redux/modules/taskModule';
+import LoadingSpinner from './LoadingSpinner';
 
 const Todo = () => {
 
-    const [tasks, setTasks] = useState([]);
-    const userInputRef = useRef(null);
+  // const [tasks, setTasks] = useState([]);
+  const userInputRef = useRef(null);
 
-    const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
 
-    const SHOWSTRING = "Show Completed Tasks ▼";
-    const HIDESTRING = "Hide Completed Tasks ▲";
-    const [showHideBtnString, setShowHideBtnString] = useState(SHOWSTRING);
+  const SHOWSTRING = "Show Completed Tasks ▼";
+  const HIDESTRING = "Hide Completed Tasks ▲";
+  const [showHideBtnString, setShowHideBtnString] = useState(SHOWSTRING);
 
-    const [showContextMenu, setShowContextMenu] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
 
-    // to use redux here, must import function from redux
-    const dispatch = useDispatch();
-    const tasksLoadedFromStore = useSelector( (stores) => stores.taskModule);
+  // to use redux here, must import function from redux
+  const dispatch = useDispatch();
+  const {tasksInStore, loading} = useSelector((stores) => stores.taskModule);
 
+
+  useEffect(() => {
+    dispatch(__getTask());
+  }, []);
+
+  if (loading) {
+    return <LoadingSpinner />
+  }
+
+  const handleAddBtn = async () => {
+    dispatch(__addTask(userInputRef.current.value))
+    userInputRef.current.value = "";
+  }
+
+  const handleUpdateBtn = async (idParam) => {
+    dispatch(__finishTask(idParam));
+
+    // const completedTask = tasksInStore?.find((task) => task.id === idParam);
+    // completedTask.completed = !completedTask.completed;
+
+    // // to omit id from being added to the updated field, consider making a special object that you can just insert in
+    // const newObj = {
+    //   completed: completedTask.completed,
+    //   timed: completedTask.timed,
+    //   content: completedTask.content,
+    //   priority: completedTask.priority
+    // }
+
+    // await update(child(ref(db), `TaskDB/${idParam}`), newObj);
+
+    // // done with the database but still need to update the array with the tasks stored in it
+    // const updatedTasks = tasksInStore?.map((task) => {
+    //   if (task.id === idParam) {
+    //     return completedTask;
+    //   }
+    //   return task;
+    // });
+
+    // setTasks(updatedTasks);
+    // console.log(tasks);
+  }
+
+  const handleDeleteBtn = async (idParam) => {
+    dispatch(__deleteTask(idParam));
+  }
+
+  const handleShowHideBtn = () => {
+    setShowCompletedTasks(!showCompletedTasks);
+    showCompletedTasks ? setShowHideBtnString(SHOWSTRING) : setShowHideBtnString(HIDESTRING);
+  }
+
+  const handleEditBtn = () => {
+    setShowContextMenu(!showContextMenu);
+  }
+
+  const minusBtnHandler = async (idParam) => {
+
+    // console.log(idParam)
+
+    // // finding task in server
+    // const subtractedTimeTask = tasks.find((task) => task.id === idParam);
+
+    // subtractedTimeTask.timed !== 0 ? subtractedTimeTask.timed -= 1 : subtractedTimeTask.timed = subtractedTimeTask.timed;
+
+    // // changing server side time property
+    // const newObj = {
+    //   completed: subtractedTimeTask.completed,
+    //   timed: subtractedTimeTask.timed,
+    //   content: subtractedTimeTask.content,
+    //   priority: subtractedTimeTask.priority
+    // }
+
+    // await update(child(ref(db), `TaskDB/${idParam}`), newObj);
+
+    // // change the array
+    // const arrWithUpdatedTimes = tasks?.map((task) => {
+    //   if (task.id === idParam) {
+    //     return newObj;
+    //   }
+    //   return task;
+    // })
+    // setTasks(arrWithUpdatedTimes);
+  }
+
+  const plusBtnHandler = async (idParam) => {
+
+    // console.log(idParam)
+
+    // // finding task in server
+    // const addedTimeTask = tasks.find((task) => task.id === idParam);
+
+    // addedTimeTask.timed < 5 ? addedTimeTask.timed += 1 : addedTimeTask.timed = addedTimeTask.timed;
+
+    // // changing server side time property
+    // const newObj = {
+    //   completed: addedTimeTask.completed,
+    //   timed: addedTimeTask.timed,
+    //   content: addedTimeTask.content,
+    //   priority: addedTimeTask.priority
+    // }
+
+    // await update(child(ref(db), `TaskDB/${idParam}`), newObj);
+
+    // // change the array
+    // const arrWithUpdatedTimes = tasks?.map((task) => {
+    //   if (task.id === idParam) {
+    //     return newObj;
+    //   }
+    //   return task;
+    // })
+    // setTasks(arrWithUpdatedTimes);
+  }
+
+  const handlePlayButton = () => {
     
-    useEffect(() => {
-      dispatch(__getTask());
-    }, []);
-    
-    console.log(tasksLoadedFromStore);
-    
-    const handleAddBtn = async () => {
-        // this is for creating a secure endpoint
-        const uuid = uid();
+  }
 
-        // figure out what you want to add by a default click
-        const newlyEnteredTask = { "content": userInputRef.current.value, "completed": false, "timed": 0, "priority": "gray" };
 
-        // add it all together
-        await set(ref(db, "/TaskDB/" + uuid), newlyEnteredTask);
+  return (
+    <StyledContainer>
+      <StyledTodo>
+        <BannerDiv>
+          <EstimatedTimeDiv>
+            <RedHeader>1h 15m</RedHeader>
+            <p>Estimated Time</p>
+          </EstimatedTimeDiv>
+          <TasksToCompleteDiv>
+            <RedHeader>3</RedHeader>
+            <p>Tasks to Complete</p>
+          </TasksToCompleteDiv>
+          <ElapsedTimeDiv>
+            <RedHeader>1h 40m</RedHeader>
+            <p>Elapsed Time</p>
+          </ElapsedTimeDiv>
+          <CompletedTasksDiv>
+            <RedHeader>4</RedHeader>
+            <p>Completed Tasks</p>
+          </CompletedTasksDiv>
+        </BannerDiv>
+        <InputDiv>
+          <SubmitBtn onClick={handleAddBtn}>+</SubmitBtn>
+          <Input placeholder='Add a task to "Tasks", press "+" button to save' type='text' ref={userInputRef} />
+        </InputDiv>
 
-        // set the input field back to an empty string
-        userInputRef.current.value = "";
-    }
-
-    const handleUpdateBtn = async (idParam) => {
-        const completedTask = tasks.find((task) => task.id === idParam);
-        completedTask.completed = !completedTask.completed;
-
-        // to omit id from being added to the updated field, consider making a special object that you can just insert in
-        const newObj = {
-            completed: completedTask.completed,
-            timed: completedTask.timed,
-            content: completedTask.content,
-            priority: completedTask.priority
-        }
-
-        await update(child(ref(db), `TaskDB/${idParam}`), newObj);
-
-        // done with the database but still need to update the array with the tasks stored in it
-        const updatedTasks = tasks.map((task) => {
-            if (task.id === idParam) {
-                return completedTask;
+        <TaskHeader>Tasks · 2h 15m</TaskHeader>
+        <TasksDiv>
+          {tasksInStore?.map((submittedTask, index) => {
+            if (submittedTask.completed === false) {
+              return (
+                <Task key={index} >
+                  <div>
+                    <input type='checkbox' checked={submittedTask.completed ? true : false} onChange={() => handleUpdateBtn(submittedTask.id)} />
+                    <PlayButton>▶</PlayButton>
+                    <span>{submittedTask.content}</span>
+                  </div>
+                  <div>
+                    <button onClick={handleEditBtn}>EDIT</button>
+                    {showContextMenu && (
+                      <DropDownDiv>
+                        <PomodoroWidgetDiv>
+                          <p>Estimated Pomodoros:</p>
+                          <div className='pomodoro-adjuster-div'>
+                            <button className='pomodoro-button' onClick={() => minusBtnHandler(submittedTask.id)}>-</button>
+                            <p><span className='timer-icon'>⏱</span>{submittedTask.timed}</p>
+                            <button className='pomodoro-button' onClick={() => plusBtnHandler(submittedTask.id)}>+</button>
+                          </div>
+                        </PomodoroWidgetDiv>
+                        <PriorityWidgetDiv>
+                          <p>Priority:</p>
+                          <div className='priority-flags-div'>
+                            <button className='gray-flag'>⚑</button>
+                            <button className='green-flag'>⚑</button>
+                            <button className='orange-flag'>⚑</button>
+                            <button className='red-flag'>⚑</button>
+                          </div>
+                        </PriorityWidgetDiv>
+                      </DropDownDiv>
+                    )}
+                  </div>
+                </Task>
+              );
             }
-            return task;
-        });
+          })}
+        </TasksDiv>
 
-        setTasks(updatedTasks);
-        console.log(tasks);
-    }
+        <ShowHideDiv>
+          <ShowHideBtn onClick={handleShowHideBtn}>{showHideBtnString}</ShowHideBtn>
+        </ShowHideDiv>
 
-    const handleDeleteBtn = async (idParam) => {
-        // delete from database with built in firebase function, recall to use await because it is a server side function
-        await remove(child(ref(db), `TaskDB/${idParam}`));
-
-        // filter returns the elements that meet the following condition
-        const filteredArrOfTasks = tasks.filter((task) => task.id !== idParam);
-        setTasks(filteredArrOfTasks);
-    }
-
-    const handleShowHideBtn = () => {
-        setShowCompletedTasks(!showCompletedTasks);
-        showCompletedTasks ? setShowHideBtnString(SHOWSTRING) : setShowHideBtnString(HIDESTRING);
-    }
-
-    const handleEditBtn = () => {
-        setShowContextMenu(!showContextMenu);
-    }
-
-    const minusBtnHandler = async (idParam) => {
-
-        console.log(idParam)
-
-        // finding task in server
-        const subtractedTimeTask = tasks.find((task) => task.id === idParam);
-
-        subtractedTimeTask.timed !== 0 ? subtractedTimeTask.timed -= 1 : subtractedTimeTask.timed = subtractedTimeTask.timed;
-
-        // changing server side time property
-        const newObj = {
-            completed: subtractedTimeTask.completed,
-            timed: subtractedTimeTask.timed,
-            content: subtractedTimeTask.content,
-            priority: subtractedTimeTask.priority
-        }
-
-        await update(child(ref(db), `TaskDB/${idParam}`), newObj);
-
-        // change the array
-        const arrWithUpdatedTimes = tasks?.map((task) => {
-            if (task.id === idParam) {
-                return newObj;
+        <CompletedTasks>
+          {showCompletedTasks && tasksInStore?.map((submittedTask, index) => {
+            if (submittedTask.completed === true) {
+              return (
+                <CompletedTask key={index}>
+                  <div>
+                    <input type='checkbox' checked={submittedTask.completed ? true : false} onChange={() => handleUpdateBtn(submittedTask.id)} />
+                    <CompletedPlayButton>▶</CompletedPlayButton>
+                    <span><s>{submittedTask.content}</s></span>
+                  </div>
+                  <button onClick={() => handleDeleteBtn(submittedTask.id)}>DELETE</button>
+                </CompletedTask>
+              )
             }
-            return task;
-        })
-        setTasks(arrWithUpdatedTimes);
-    }
+          })}
 
-    const plusBtnHandler = async (idParam) => {
+        </CompletedTasks>
 
-        console.log(idParam)
-
-        // finding task in server
-        const addedTimeTask = tasks.find((task) => task.id === idParam);
-
-        addedTimeTask.timed < 5 ? addedTimeTask.timed += 1 : addedTimeTask.timed = addedTimeTask.timed;
-
-        // changing server side time property
-        const newObj = {
-            completed: addedTimeTask.completed,
-            timed: addedTimeTask.timed,
-            content: addedTimeTask.content,
-            priority: addedTimeTask.priority
-        }
-
-        await update(child(ref(db), `TaskDB/${idParam}`), newObj);
-
-        // change the array
-        const arrWithUpdatedTimes = tasks?.map((task) => {
-            if (task.id === idParam) {
-                return newObj;
-            }
-            return task;
-        })
-        setTasks(arrWithUpdatedTimes);
-    }
-
-
-
-    return (
-        <StyledContainer>
-            <StyledTodo>
-                <BannerDiv>
-                    <EstimatedTimeDiv>
-                        <RedHeader>1h 15m</RedHeader>
-                        <p>Estimated Time</p>
-                    </EstimatedTimeDiv>
-                    <TasksToCompleteDiv>
-                        <RedHeader>3</RedHeader>
-                        <p>Tasks to Complete</p>
-                    </TasksToCompleteDiv>
-                    <ElapsedTimeDiv>
-                        <RedHeader>1h 40m</RedHeader>
-                        <p>Elapsed Time</p>
-                    </ElapsedTimeDiv>
-                    <CompletedTasksDiv>
-                        <RedHeader>4</RedHeader>
-                        <p>Completed Tasks</p>
-                    </CompletedTasksDiv>
-                </BannerDiv>
-                <InputDiv>
-                    <SubmitBtn onClick={handleAddBtn}>+</SubmitBtn>
-                    <Input placeholder='Add a task to "Tasks", press "+" button to save' type='text' ref={userInputRef} />
-                </InputDiv>
-
-                <TaskHeader>Tasks · 2h 15m</TaskHeader>
-                <TasksDiv>
-                    {tasks?.map((submittedTask, index) => {
-                        if (submittedTask.completed === false) {
-                            return (
-                                <Task key={index} >
-                                    <div>
-                                        <input type='checkbox' checked={submittedTask.completed ? true : false} onChange={() => handleUpdateBtn(submittedTask.id)} />
-                                        <PlayButton>▶</PlayButton>
-                                        <span>{submittedTask.content}</span>
-                                    </div>
-                                    <div>
-                                        <button onClick={handleEditBtn}>EDIT</button>
-                                        {showContextMenu && (
-                                            <DropDownDiv>
-                                                <PomodoroWidgetDiv>
-                                                    <p>Estimated Pomodoros:</p>
-                                                    <div className='pomodoro-adjuster-div'>
-                                                        <button className='pomodoro-button' onClick={() => minusBtnHandler(submittedTask.id)}>-</button>
-                                                        <p><span className='timer-icon'>⏱</span>{submittedTask.timed}</p>
-                                                        <button className='pomodoro-button' onClick={() => plusBtnHandler(submittedTask.id)}>+</button>
-                                                    </div>
-                                                </PomodoroWidgetDiv>
-                                                <PriorityWidgetDiv>
-                                                    <p>Priority:</p>
-                                                    <div className='priority-flags-div'>
-                                                        <button className='gray-flag'>⚑</button>
-                                                        <button className='green-flag'>⚑</button>
-                                                        <button className='orange-flag'>⚑</button>
-                                                        <button className='red-flag'>⚑</button>
-                                                    </div>
-                                                </PriorityWidgetDiv>
-                                            </DropDownDiv>
-                                        )}
-                                    </div>
-                                </Task>
-                            );
-                        }
-                    })}
-                </TasksDiv>
-
-                <ShowHideDiv>
-                    <ShowHideBtn onClick={handleShowHideBtn}>{showHideBtnString}</ShowHideBtn>
-                </ShowHideDiv>
-
-                <CompletedTasks>
-                    {showCompletedTasks && tasks?.map((submittedTask, index) => {
-                        if (submittedTask.completed === true) {
-                            return (
-                                <CompletedTask key={index}>
-                                    <div>
-                                        <input type='checkbox' checked={submittedTask.completed ? true : false} onChange={() => handleUpdateBtn(submittedTask.id)} />
-                                        <CompletedPlayButton>▶</CompletedPlayButton>
-                                        <span><s>{submittedTask.content}</s></span>
-                                    </div>
-                                    <button onClick={() => handleDeleteBtn(submittedTask.id)}>DELETE</button>
-                                </CompletedTask>
-                            )
-                        }
-                    })}
-
-                </CompletedTasks>
-
-            </StyledTodo>
-        </StyledContainer>
-    )
+      </StyledTodo>
+    </StyledContainer>
+  )
 }
 
 export default Todo
