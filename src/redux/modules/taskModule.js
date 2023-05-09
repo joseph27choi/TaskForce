@@ -17,6 +17,7 @@ const LOADING = "TaskDB/LOADING";
 const ADD_TASK = "TaskDB/ADD_TASK";
 const FINISH_TASK = "TaskDB/FINISH_TASK";
 const DELETE_TASK = "TaskDB/DELETE_TASK";
+const UPDATE_COLOR = "TaskDB/UPDATE_COLOR";
 
 // action function -- google translate (from chinese to english)
 const getTask = (payload) => ({ type: GET_TASK, payload: payload });
@@ -24,6 +25,7 @@ const loadingTask = (payload) => ({ type: LOADING, payload: payload });
 const addTask = (payload) => ({ type: ADD_TASK, payload: payload });
 const finishTask = (payload) => ({ type: FINISH_TASK, payload: payload });
 const deleteTask = (payload) => ({ type: DELETE_TASK, payload: payload });
+const updateColor = (payload) => ({ type: UPDATE_COLOR, payload: payload })
 
 // thunk function -- interact with server (request response)
 // get functions do not need any inputs, void input
@@ -58,12 +60,12 @@ export const __getTask = () => async (dispatch, getState) => {
 
 // let payload be the entered content of the todo
 export const __addTask = (payload) => async (dispatch, getState) => {
-    dispatch(loadingTask(true));
+    // dispatch(loadingTask(true));
     try {
         // this is for creating a secure endpoint
         const uuid = uid();
         // figure out what you want to add by a default click
-        const newlyEnteredTask = { "content": payload, "completed": false, "timed": 0, "priority": "gray" };
+        const newlyEnteredTask = { "content": payload, "completed": false, "timed": 1, "priority": "gray" };
         // add it all together
         await set(ref(db, "/TaskDB/" + uuid), newlyEnteredTask);
 
@@ -71,7 +73,7 @@ export const __addTask = (payload) => async (dispatch, getState) => {
     } catch (error) {
         console.log(error);
     } finally {
-        dispatch(loadingTask(false));
+        // dispatch(loadingTask(false));
     }
 }
 
@@ -81,23 +83,23 @@ export const __finishTask = (payload) => async (dispatch, getState) => {
     try {
         const arrOfTasks = getState().taskModule.tasksInStore;
 
-        const completedTask = arrOfTasks?.find( (task) => task.id === payload);
+        const completedTask = arrOfTasks?.find((task) => task.id === payload);
 
         completedTask.completed = !completedTask.completed;
 
         // to omit id from being added to the updated field, consider making a special object that you can just insert in
         const newObj = {
-          completed: completedTask.completed,
-          timed: completedTask.timed,
-          content: completedTask.content,
-          priority: completedTask.priority
+            completed: completedTask.completed,
+            timed: completedTask.timed,
+            content: completedTask.content,
+            priority: completedTask.priority
         }
 
         await update(child(ref(db), `TaskDB/${payload}`), newObj);
 
         // don't know if I still need to process it in reducer
         // because we already updated the server and the get function fetches updated info
-
+        dispatch(finishTask({ id: payload, data: newObj }))
     } catch (error) {
         console.log(error);
     } finally {
@@ -107,10 +109,10 @@ export const __finishTask = (payload) => async (dispatch, getState) => {
 
 // let payload be the id of deleted task
 export const __deleteTask = (payload) => async (dispatch, getState) => {
-    dispatch(loadingTask(true));
+    // dispatch(loadingTask(true));
     try {
         const arrOfTasks = getState().taskModule.tasksInStore;
-        const deletedTask = arrOfTasks?.find( (task) => task.id === payload);
+        const deletedTask = arrOfTasks?.find((task) => task.id === payload);
         console.log(deletedTask.content)
 
         // delete from database
@@ -118,7 +120,7 @@ export const __deleteTask = (payload) => async (dispatch, getState) => {
         // removed from db
 
         // time to remove it from the store, literally update the array
-        const filteredArrOfTasks = arrOfTasks.filter((task) => task.id !== payload )
+        const filteredArrOfTasks = arrOfTasks.filter((task) => task.id !== payload)
 
         // send this updated list to reducer through the action function
         dispatch(deleteTask(filteredArrOfTasks));
@@ -126,9 +128,38 @@ export const __deleteTask = (payload) => async (dispatch, getState) => {
     } catch (error) {
         console.log(error);
     } finally {
+        // dispatch(loadingTask(false));
+    }
+}
+
+export const __updateColor = (payload, flagColor) => async(dispatch, getState) => {
+    dispatch(loadingTask(true));
+    try {
+        const arrOfTasks = getState().taskModule.tasksInStore;
+
+        const flaggedTask = arrOfTasks?.find((task) => task.id === payload);
+        
+        flaggedTask.priority = flagColor;
+
+        // to omit id from being added to the updated field, consider making a special object that you can just insert in
+        const newObj = {
+            completed: flaggedTask.completed,
+            timed: flaggedTask.timed,
+            content: flaggedTask.content,
+            priority: flaggedTask.priority
+        }
+        console.log(newObj)
+
+        await update(child(ref(db), `TaskDB/${payload}`), newObj);
+
+        dispatch(updateColor({ id: payload, data: newObj }))
+    } catch (error) {
+        console.log(error);
+    } finally {
         dispatch(loadingTask(false));
     }
 }
+
 
 // export reducer -- editor boy
 const taskModule = (state = initialState, action) => {
@@ -139,6 +170,7 @@ const taskModule = (state = initialState, action) => {
                 loading: action.payload,
             }
         case GET_TASK:
+            console.log(state)
             return {
                 ...state,
                 tasksInStore: [...action.payload],
@@ -148,15 +180,26 @@ const taskModule = (state = initialState, action) => {
                 ...state,
                 tasksInStore: [...state.tasksInStore, action.payload],
             }
-        // case FINISH_TASK:
-        //     return {
-        //         ...state,
-        //         tasksInStore: [...action.payload],
-        //     }
+        case FINISH_TASK:
+            const newArr = state.tasksInStore.map((task) => {
+                return task.id === action.payload.id ? task = action.payload.data : task;
+            })
+            return {
+                ...state,
+                tasksInStore: [...newArr],
+            }
         case DELETE_TASK:
             return {
                 ...state,
                 tasksInStore: [...action.payload],
+            }
+        case UPDATE_COLOR:
+            const sortedArr = state.tasksInStore.map((task) => {
+                return task.id === action.payload.id ? task = action.payload.data : task;
+            })
+            return {
+                ...state,
+                tasksInStore: [...sortedArr]
             }
         default:
             return state;

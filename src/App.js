@@ -1,12 +1,11 @@
 import { Route, Routes } from 'react-router-dom';
 import './App.css';
-import LoadingSpinner from './components/LoadingSpinner';
-import Test from './components/Test';
-import Todo from './components/Todo';
 import HomePage from './pages/HomePage';
 import LoadingPage from './pages/LoadingPage';
 import RandomPage from './pages/RandomPage';
 import DestinationPage from './pages/DestinationPage';
+import Pomodoro from './pages/Pomodoro';
+import Registration from './components/RegistrationFolder/Registration';
 
 function App() {
   return (
@@ -15,6 +14,8 @@ function App() {
       <Route path='/loading' element={<LoadingPage />} />
       <Route path='/' element={<RandomPage />} />
       <Route path='/destination' element={<DestinationPage />} />
+      <Route path='/pomodoro' element={<Pomodoro />} />
+      <Route path='/r' element={<Registration />} />
     </Routes>
   );
 }
