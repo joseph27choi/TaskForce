@@ -7,7 +7,7 @@ import Pomodoro from './pages/Pomodoro';
 function App() {
   return (
     <Routes>
-      <Route path='/home' element={<HomePage />} />
+      <Route path='/' element={<HomePage />} />
       <Route path='/loading' element={<LoadingPage />} />
       <Route path='/pomodoro' element={<Pomodoro />} />
     </Routes>
