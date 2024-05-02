@@ -126,24 +126,31 @@ const Todo = () => {
     })
   }
 
+  const remainingTasks = tasksInStore?.filter((task) => !task.completed);
+  const remainingTime = remainingTasks?.length * 25;
+  
+  const elapsedTasks = tasksInStore?.filter((task) => task.completed);
+  const elapsedTime = elapsedTasks?.length * 25;
+
+
   return (
     <StyledContainer>
       <StyledTodo>
         <BannerDiv>
           <EstimatedTimeDiv>
-            <RedHeader>1h 15m</RedHeader>
+            <RedHeader>{remainingTime < 60 ? `${remainingTime}m` : `${Math.floor(remainingTime / 60)}h ${remainingTime % 60}m`}</RedHeader>
             <p>Estimated Time</p>
           </EstimatedTimeDiv>
           <TasksToCompleteDiv>
-            <RedHeader>3</RedHeader>
+            <RedHeader>{remainingTasks?.length}</RedHeader>
             <p>Tasks to Complete</p>
           </TasksToCompleteDiv>
           <ElapsedTimeDiv>
-            <RedHeader>1h 40m</RedHeader>
+            <RedHeader>{elapsedTime < 60 ? `${elapsedTime}m` : `${Math.floor(elapsedTime / 60)}h ${elapsedTime % 60}m`}</RedHeader>
             <p>Elapsed Time</p>
           </ElapsedTimeDiv>
           <CompletedTasksDiv>
-            <RedHeader>4</RedHeader>
+            <RedHeader>{elapsedTasks?.length}</RedHeader>
             <p>Completed Tasks</p>
           </CompletedTasksDiv>
         </BannerDiv>
